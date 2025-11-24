@@ -1,0 +1,7 @@
+## This file is a template remove the .template to use the file
+
+libraries:
+  # These are names of libraries in your Plex
+  - "Movies"
+  - "TV Shows"
+  - "Audiobooks"
