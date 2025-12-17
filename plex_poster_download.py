@@ -29,18 +29,26 @@ from plex_connection import PlexConnection
 
 load_dotenv(override=True)  # Take environment variables from .env
 
+def create_save_path(save_path: str, library, name: str) -> Path:
+    """
+    Create save directory and unique path.
 
-def download_images(save_path: str, library, name: str, thumb_url: str) -> Path:
-    """Create save paths and pull posters from URL."""
+    Args:
+        save_path (str): Path to save posters
+        library (LibrarySection): Plex library
+        name (str): Media's name for poster
+
+    Returns:
+        Path: _description_
+    """
     # Create paths for Movies and TV Shows inside current directory
     if save_path is not None:
         save_dir_path = Path(save_path).joinpath(library[0])
-        os.makedirs(save_dir_path, exist_ok=True)
-        image_path = save_dir_path.joinpath(f"{name}.png")
     else:
         save_dir_path = Path.cwd().joinpath(f"Posters/{library[0]}")
-        os.makedirs(save_dir_path, exist_ok=True)
-        image_path = save_dir_path.joinpath(f"{name}.png")
+    os.makedirs(save_dir_path, exist_ok=True)
+    image_path = save_dir_path.joinpath(f"{name}.png")
+
     # Check if file already exists and save
     if image_path.exists():
         i = 1
@@ -48,8 +56,24 @@ def download_images(save_path: str, library, name: str, thumb_url: str) -> Path:
             i += 1
         image_path = image_path.with_stem(f"{name}_{i}")
 
+    return image_path
+
+def download_images(save_path: str, library, name: str, thumb_url: str) -> Path:
+    """
+    Pull posters from URL.
+
+    Args:
+        save_path (str): Path to save posters
+        library (LibrarySection): Plex library
+        name (str): Media's name for poster
+        thumb_url (str): Plex URL where poster can be accessed
+
+    Returns:
+        Path: Path of save directory
+    """
+    image_path = create_save_path(save_path, library, name)
     urllib.request.urlretrieve(thumb_url, image_path)
-    return save_dir_path
+    return image_path.parent
 
 def main(save_path: str = None):
     """
@@ -85,7 +109,7 @@ def main(save_path: str = None):
             unit=library[1].type
         ):
             if lib_type == "audio":
-                # Audio libraries have multiple layers
+                # Audio libraries have multiple layers in the API
                 for album in child.albums():
                     # Clean names of special characters
                     name = re.sub('\\W+', ' ', album.title)
@@ -102,7 +126,7 @@ def main(save_path: str = None):
                         name=name,
                         thumb_url=thumb_url
                     )
-            else:
+            else:  # lib_type = "video"
                 # Clean names of special characters
                 name = re.sub('\\W+', ' ', child.title)
                 # Add (year) to name
@@ -125,7 +149,9 @@ def main(save_path: str = None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("save_path", nargs='?', default=None, help="Path to save posters")
+    parser.add_argument(
+        "save_path", nargs='?', default=None, help="Path to save posters at, optional, default is cwd",
+    )
     args = parser.parse_args()
 
     main(args.save_path)

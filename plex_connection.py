@@ -136,7 +136,7 @@ class PlexConnection:
         Return accessible Plex libraries.
 
         Returns:
-            dict[str, LibrarySection]: {library name: Plex library object}
+            dict[str,LibrarySection]: {library name: Plex library object}
         """
         plex_libraries: "dict[str, LibrarySection]" = {}
         for library in self.libraries:
