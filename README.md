@@ -56,3 +56,13 @@ Simply run the script. By default, the posters will be saved in a folder in the 
 ```bash
 python plex_poster_download.py <save_path>
 ```
+
+Examples:
+
+```bash
+python plex_poster_download.py
+```
+
+```bash
+python plex_poster_download.py "./Poster Downloads"
+```
