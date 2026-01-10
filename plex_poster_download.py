@@ -20,8 +20,10 @@ import re
 import argparse
 import urllib.request
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
+from plexapi.library import LibrarySection
 from tqdm import tqdm
 
 from plex_connection import PlexConnection
@@ -29,27 +31,29 @@ from plex_connection import PlexConnection
 
 load_dotenv(override=True)  # Take environment variables from .env
 
-def create_save_path(save_path: str, library, name: str) -> Path:
+def create_save_path(
+    save_path: Optional[str], library: tuple[str, LibrarySection], name: str
+) -> Path:
     """
     Create save directory and unique path.
 
     Args:
-        save_path (str): Path to save posters
+        save_path (Optional[str]): Path to save posters
         library (LibrarySection): Plex library
         name (str): Media's name for poster
 
     Returns:
-        Path: _description_
+        Path: Unique save path
     """
-    # Create paths for Movies and TV Shows inside current directory
     if save_path is not None:
         save_dir_path = Path(save_path).joinpath(library[0])
     else:
+        # Create path for library posters inside current directory
         save_dir_path = Path.cwd().joinpath(f"Posters/{library[0]}")
     os.makedirs(save_dir_path, exist_ok=True)
     image_path = save_dir_path.joinpath(f"{name}.png")
 
-    # Check if file already exists and save
+    # Check if file already exists and append index if so
     if image_path.exists():
         i = 1
         while image_path.with_stem(f"{name}_{i}").exists():
@@ -58,12 +62,14 @@ def create_save_path(save_path: str, library, name: str) -> Path:
 
     return image_path
 
-def download_images(save_path: str, library, name: str, thumb_url: str) -> Path:
+def download_images(
+    save_path: Optional[str], library: tuple[str, LibrarySection], name: str, thumb_url: str
+) -> Path:
     """
     Pull posters from URL.
 
     Args:
-        save_path (str): Path to save posters
+        save_path (Optional[str]): Path to save posters
         library (LibrarySection): Plex library
         name (str): Media's name for poster
         thumb_url (str): Plex URL where poster can be accessed
@@ -75,7 +81,7 @@ def download_images(save_path: str, library, name: str, thumb_url: str) -> Path:
     urllib.request.urlretrieve(thumb_url, image_path)
     return image_path.parent
 
-def main(save_path: str = None):
+def main(save_path: Optional[str] = None):
     """
     Saves the posters of items in Plex libraries.
 
@@ -92,7 +98,7 @@ def main(save_path: str = None):
         if library[1].type == "photo":
             print("This function does not handle photo libraries.")
             continue
-        if library[1].type in ['movie', 'show']:
+        if library[1].type in ["movie", "show"]:
             lib_type = "video"
         elif library[1].type == "artist":
             lib_type = "audio"
