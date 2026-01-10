@@ -1,22 +1,12 @@
 import os
 import sys
-import argparse
-# from pathlib import Path
-# from typing import Union
 
 from dotenv import load_dotenv
 import plexapi.exceptions
 from plexapi.server import PlexServer
-from plexapi.library import LibrarySection, MovieSection, ShowSection
-# from plexapi.collection import Collection
-# from plexapi.video import Movie, Show
-# from plexapi.media import Field, Guid
+from plexapi.library import LibrarySection
 import requests
-# from tqdm import tqdm
 import yaml
-
-
-# load_dotenv(override=True)  # Take environment variables from .env
 
 
 class PlexConnection:
@@ -138,13 +128,13 @@ class PlexConnection:
         Returns:
             dict[str,LibrarySection]: {library name: Plex library object}
         """
-        plex_libraries: "dict[str, LibrarySection]" = {}
+        plex_libraries_dict: "dict[str, LibrarySection]" = {}
         for library in self.libraries:
             try:
-                plex_libraries[library] = self.plex.library.section(library)
+                plex_libraries_dict[library] = self.plex.library.section(library)
             except plexapi.exceptions.NotFound:
                 sys.exit(f'Library named "{library}" not found. Please check the config.yml, and consult the README.')
-        return plex_libraries
+        return plex_libraries_dict
 
     def get_item_guid(
         self, title: str, lib_type: str, full: bool = False
