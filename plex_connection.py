@@ -58,6 +58,7 @@ class PlexConnection:
 
         # Ensure "http://" at start of ip address
         for ip in [self.plex_ip, self.plex_pub_ip]:
+            # print(self.plex_ip, self.plex_pub_ip)
             if ip and (ip[:7] != "http://") and (ip[:8] != "https://"):
                 sys.exit(
                     'Invalid IP address. Ensure IP address begins "http://". '

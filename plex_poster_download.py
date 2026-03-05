@@ -20,10 +20,12 @@ import re
 import argparse
 import urllib.request
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from dotenv import load_dotenv
 from plexapi.library import LibrarySection
+from plexapi.video import Show, Movie
+from plexapi.audio import Artist, Album
 from tqdm import tqdm
 
 from plex_connection import PlexConnection
@@ -32,13 +34,13 @@ from plex_connection import PlexConnection
 load_dotenv(override=True)  # Take environment variables from .env
 
 def create_save_path(
-    save_path: Optional[str], library: tuple[str, LibrarySection], name: str
+    save_path: Optional[Path], library: tuple[str, LibrarySection], name: str
 ) -> Path:
     """
     Create save directory and unique path.
 
     Args:
-        save_path (Optional[str]): Path to save posters
+        save_path (Optional[Path]): Path to save posters
         library (LibrarySection): Plex library
         name (str): Media's name for poster
 
@@ -46,7 +48,7 @@ def create_save_path(
         Path: Unique save path
     """
     if save_path is not None:
-        save_dir_path = Path(save_path).joinpath(library[0])
+        save_dir_path = save_path.joinpath(library[0])
     else:
         # Create path for library posters inside current directory
         save_dir_path = Path.cwd().joinpath(f"Posters/{library[0]}")
@@ -62,38 +64,44 @@ def create_save_path(
 
     return image_path
 
-def download_images(
-    save_path: Optional[str], library: tuple[str, LibrarySection], name: str, thumb_url: str
-) -> Path:
+def grab_url(
+    lib_item: Union[Album, Movie, Show], plex: PlexConnection, video_lib: bool
+) -> tuple[str, str]:
     """
-    Pull posters from URL.
+    Clean item name and get plex library URL of poster.
 
     Args:
-        save_path (Optional[str]): Path to save posters
-        library (LibrarySection): Plex library
-        name (str): Media's name for poster
-        thumb_url (str): Plex URL where poster can be accessed
+        lib_item (Union[Album, Movie, Show]): Particular plex library item
+        plex (PlexConnection): Plex connection
+        video_lib (bool): whether or not item is from a video library, for naming convention
 
     Returns:
-        Path: Path of save directory
+        tuple[str,str]: (new filename, poster URL)
     """
-    image_path = create_save_path(save_path, library, name)
-    urllib.request.urlretrieve(thumb_url, image_path)
-    return image_path.parent
+    # Clean names of special characters
+    name = re.sub('\\W+', ' ', lib_item.title)
+    if video_lib:  # Add (year) to name
+        name = f"{name} ({lib_item.year})"
+    # Pull URL for poster
+    thumb_url = (
+        # f'{os.environ["PLEX_SERVER_PUBLIC_IP"]}{lib_item.images[0].url}'
+        f'{plex.plex_pub_ip if not plex.using_public_ip else plex.plex_ip}{lib_item.images[0].url}'
+        f'?X-Plex-Token={os.environ["PLEX_TOKEN"]}'
+    )
+    return name, thumb_url
 
-def main(save_path: Optional[str] = None):
+def main(save_path: Optional[Path] = None):
     """
     Saves the posters of items in Plex libraries.
 
     Args:
-        save_path (str, optional): Path to save posters. Defaults to None.
+        save_path (Path, optional): Path to save posters. Defaults to None.
     """
     print("Loading Plex config...")
     plex = PlexConnection(edit_collections=False)
     plex_libraries = plex.get_libraries()
 
     save_dir_path = ""
-    # Get all movies or shows from LIBRARY_NAME
     for library in plex_libraries.items():
         if library[1].type == "photo":
             print("This function does not handle photo libraries.")
@@ -106,57 +114,49 @@ def main(save_path: Optional[str] = None):
             print("Unknown library type.")
             continue
 
-        for child in tqdm(
-            library[1].all(),
-            total=library[1].totalSize,
-            ascii=" ░▒█",
-            ncols=100,
-            desc=library[0],
-            unit=library[1].type
-        ):
-            if lib_type == "audio":
+        if lib_type == "audio":
+            artist: Artist
+            for artist in tqdm(
+                library[1].all(),
+                total=library[1].totalSize,
+                ascii=" ░▒█",
+                ncols=100,
+                desc=library[0],
+                unit=library[1].type
+            ):
                 # Audio libraries have multiple layers in the API
-                for album in child.albums():
-                    # Clean names of special characters
-                    name = re.sub('\\W+', ' ', album.title)
-                    # Pull URL for poster
+                album: Album
+                for album in artist.albums():
                     if album.thumb is None:
                         continue
-                    thumb_url = (
-                        f'{os.environ["PLEX_SERVER_PUBLIC_IP"]}{album.images[0].url}'
-                        f'?X-Plex-Token={os.environ["PLEX_TOKEN"]}'
-                    )
-                    save_dir_path = download_images(
-                        save_path=save_path,
-                        library=library,
-                        name=name,
-                        thumb_url=thumb_url
-                    )
-            else:  # lib_type = "video"
-                # Clean names of special characters
-                name = re.sub('\\W+', ' ', child.title)
-                # Add (year) to name
-                name = f"{name} ({child.year})"
-                # Pull URL for poster
-                if child.thumb is None:
+                    name, thumb_url = grab_url(album, plex, video_lib=False)
+                    image_path = create_save_path(save_path, library, name)
+                    urllib.request.urlretrieve(thumb_url, image_path)
+                    save_dir_path = image_path.parent
+
+        else:  # lib_type = "video"
+            video: Union[Movie, Show]
+            for video in tqdm(
+                library[1].all(),
+                total=library[1].totalSize,
+                ascii=" ░▒█",
+                ncols=100,
+                desc=library[0],
+                unit=library[1].type
+            ):
+                if video.thumb is None:
                     continue
-                thumb_url = (
-                    f'{os.environ["PLEX_SERVER_PUBLIC_IP"]}{child.images[0].url}'
-                    f'?X-Plex-Token={os.environ["PLEX_TOKEN"]}'
-                )
-                save_dir_path = download_images(
-                    save_path=save_path,
-                    library=library,
-                    name=name,
-                    thumb_url=thumb_url
-                )
+                name, thumb_url = grab_url(video, plex, video_lib=True)
+                image_path = create_save_path(save_path, library, name)
+                urllib.request.urlretrieve(thumb_url, image_path)
+                save_dir_path = image_path.parent
     print(f"Saved to {save_dir_path}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "save_path", nargs='?', default=None, help="Path to save posters at, optional, default is cwd",
+        "save_path", nargs='?', type=Path, default=None, help="Path to save posters at, optional, default is cwd",
     )
     args = parser.parse_args()
 
