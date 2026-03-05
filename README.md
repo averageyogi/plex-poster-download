@@ -33,7 +33,7 @@ source ./env/Scripts/activate
 ```
 
 ```bash
-pip install -r requirements.txt
+pip install -r pyproject.toml
 ```
 
 </details>
