@@ -10,7 +10,13 @@ directory.
 <details>
 <summary>Virtual environment</summary>
 
-### Create/activate a virtual environment
+### With UV
+
+```bash
+uv sync
+```
+
+### or Create/activate a virtual environment and use pip
 
 ```bash
 # Virtualenv modules installation (Linux/Mac based systems)
@@ -26,15 +32,13 @@ python -m venv env
 source ./env/Scripts/activate
 ```
 
-</details>
-
----
-Install dependencies
-
 ```bash
 pip install -r requirements.txt
 ```
 
+</details>
+
+---
 Create .env file from [.env.example](./.env.example) with Plex credentials
 (server IP address, api token, and library names).
 
